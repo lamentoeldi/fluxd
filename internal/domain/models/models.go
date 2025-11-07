@@ -15,7 +15,6 @@ type Job struct {
 	Retries      int           `json:"retries"`
 	RetryBackoff time.Duration `json:"retry_backoff"`
 	Timeout      time.Duration `json:"timeout"`
-	Status       string        `json:"status"`
 	LogDriver    string        `json:"log_driver"`
 	CreatedAt    int64         `json:"created_at"`
 }

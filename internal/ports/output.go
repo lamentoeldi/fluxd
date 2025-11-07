@@ -15,10 +15,7 @@ type JobCommand interface {
 
 type JobQuery interface {
 	Get(ctx context.Context, jobID uuid.UUID) (models.Job, error)
-	GetDeps(ctx context.Context, jobID uuid.UUID) ([]models.Job, error)
-	GetMany(ctx context.Context, cursor uuid.UUID, limit int) ([]models.Job, error)
-	GetWithDeps(ctx context.Context, jobID, cursor uuid.UUID, limit int) ([]models.Job, error)
-	GetReady(ctx context.Context, cursor uuid.UUID, limit int) ([]models.Job, error)
+	GetAll(ctx context.Context) ([]models.Job, error)
 }
 
 type JobLogsCommand interface {

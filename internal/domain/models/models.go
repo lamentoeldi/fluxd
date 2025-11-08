@@ -5,18 +5,35 @@ import (
 	"time"
 )
 
+type Workflow struct {
+	ID        uuid.UUID          `json:"id"`
+	Name      string             `json:"name"`
+	Schedules []WorkflowSchedule `json:"schedules"`
+	LogDriver string             `json:"log_driver"`
+	CreatedAt int64              `json:"created_at"`
+	Jobs      []Job              `json:"jobs"`
+}
+
+type WorkflowSchedule struct {
+	NextRun     time.Time     `json:"next_run"`
+	RepeatEvery time.Duration `json:"repeat_every"`
+	Times       []int         `json:"times,omitempty"`
+}
+
+func (w *WorkflowSchedule) UpdateNext() {
+	w.NextRun = w.NextRun.Add(w.RepeatEvery)
+}
+
 type Job struct {
-	ID           uuid.UUID     `json:"id"`
+	ID           int `json:"id"`
+	WorkflowID   uuid.UUID
 	Name         string        `json:"name"`
-	Schedules    []time.Time   `json:"schedules"`
 	Executor     string        `json:"executor"`
 	Commands     []string      `json:"commands"`
-	Dependencies []uuid.UUID   `json:"dependencies"`
+	Dependencies []int         `json:"dependencies"`
 	Retries      int           `json:"retries"`
 	RetryBackoff time.Duration `json:"retry_backoff"`
 	Timeout      time.Duration `json:"timeout"`
-	LogDriver    string        `json:"log_driver"`
-	CreatedAt    int64         `json:"created_at"`
 }
 
 type JobLog struct {
@@ -26,8 +43,9 @@ type JobLog struct {
 }
 
 type JobResult struct {
-	ID         uuid.UUID `json:"id"`
-	Logs       []JobLog  `json:"logs"`
-	StartedAt  int64     `json:"started_at"`
-	FinishedAt int64     `json:"finished_at"`
+	ID         int `json:"id"`
+	WorkflowID uuid.UUID
+	Logs       []JobLog `json:"logs"`
+	StartedAt  int64    `json:"started_at"`
+	FinishedAt int64    `json:"finished_at"`
 }

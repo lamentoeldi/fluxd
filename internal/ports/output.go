@@ -6,27 +6,37 @@ import (
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 )
 
-type JobCommand interface {
-	Add(ctx context.Context, job models.Job) error
-	AddMany(ctx context.Context, jobs []models.Job) error
-	Update(ctx context.Context, job models.Job) error
-	Delete(ctx context.Context, jobID uuid.UUID) error
+type WorkflowCommand interface {
+	Add(ctx context.Context, workflow models.Workflow) error
+	AddMany(ctx context.Context, workflow []models.Workflow) error
+	Update(ctx context.Context, workflow models.Workflow) error
+	Delete(ctx context.Context, workflowID uuid.UUID) error
 }
 
-type JobQuery interface {
-	Get(ctx context.Context, jobID uuid.UUID) (models.Job, error)
-	GetAll(ctx context.Context) ([]models.Job, error)
+type WorkflowQuery interface {
+	Get(ctx context.Context, workflow uuid.UUID) (models.Workflow, error)
+	GetAll(ctx context.Context) ([]models.Workflow, error)
 }
 
-type JobLogsCommand interface {
-	Add(ctx context.Context, log models.JobLog) error
-	AddMany(ctx context.Context, logs []models.JobLog) error
+type WorkflowBus interface {
+	SendWorkflow(ctx context.Context, workflow models.Workflow) error
+	SendWorkflows(ctx context.Context, workflow []models.Workflow) error
+	RecvWorkflows(ctx context.Context) (<-chan models.Workflow, error)
 }
 
-type JobLogsQuery interface {
-	Get(ctx context.Context, jobID uuid.UUID, limit int, before, after int64) ([]models.JobLog, error)
+type JobBus interface {
+	SendJob(ctx context.Context, job models.Job) error
+	SendJobs(ctx context.Context, job []models.Job) error
+	RecvJobs(ctx context.Context) (<-chan models.Job, error)
 }
 
-type JobExecutor interface {
-	ExecuteJob(ctx context.Context, job models.Job) (models.JobResult, error)
+type JobResultBus interface {
+	SendJobResult(ctx context.Context, job models.JobResult) error
+	SendJobResults(ctx context.Context, job []models.JobResult) error
+	RecvJobResults(ctx context.Context) (<-chan models.JobResult, error)
+}
+
+type JobResultCommand interface {
+	Add(ctx context.Context, job models.JobResult) error
+	AddMany(ctx context.Context, jobs []models.JobResult) error
 }

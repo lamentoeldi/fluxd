@@ -6,31 +6,43 @@ import (
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 )
 
-type ScheduleJobUseCase interface {
-	ScheduleJob(ctx context.Context, job models.Job) error
-	ScheduleJobs(ctx context.Context, jobs []models.Job) error
+type ScheduleWorkflowUseCase interface {
+	ScheduleWorkflow(ctx context.Context, workflow models.Workflow) error
+	ScheduleWorkflows(ctx context.Context, workflows []models.Workflow) error
 }
 
-type UnscheduleJobUseCase interface {
-	UnscheduleJob(ctx context.Context, job models.Job) error
-	UnscheduleJobs(ctx context.Context, jobs []models.Job) error
+type UnscheduleWorkflowUseCase interface {
+	UnscheduleWorkflow(ctx context.Context, workflowID uuid.UUID) error
+	UnscheduleWorkflows(ctx context.Context, workflowIDs []uuid.UUID) error
 }
 
-type ModifyJobUseCase interface {
-	ModifyJob(ctx context.Context, job models.Job) error
-	ModifyJobs(ctx context.Context, jobs []models.Job) error
+type ModifyWorkflowUseCase interface {
+	ModifyWorkflow(ctx context.Context, workflow models.Workflow) error
+	ModifyWorkflows(ctx context.Context, workflows []models.Workflow) error
 }
 
-type ForceRunJobUseCase interface {
-	ForceRunJob(ctx context.Context, jobID uuid.UUID, includeDeps bool) error
-	ForceRunJobs(ctx context.Context, jobs []models.Job, includeDeps bool) error
+type ForceRunWorkflowUseCase interface {
+	ForceRunWorkflow(ctx context.Context, workflowID uuid.UUID) error
+	ForceRunWorkflows(ctx context.Context, workflows []models.Workflow) error
 }
 
-type GetJobUseCase interface {
-	GetJob(ctx context.Context, jobID uuid.UUID) (models.Job, error)
-	GetJobs(ctx context.Context) ([]models.Job, error)
+type GetWorkflowsUseCase interface {
+	GetWorkflow(ctx context.Context, workflowID uuid.UUID) (models.Workflow, error)
+	GetWorkflows(ctx context.Context) ([]models.Workflow, error)
 }
 
-type GetJobLogsUseCase interface {
-	GetJobLogs(ctx context.Context, jobID uuid.UUID, getAll bool) ([]models.JobLog, error)
+type PublishWorkflowUseCase interface {
+	PublishWorkflow(ctx context.Context, workflow models.Workflow) error
+}
+
+type UpdateWorkflowUseCase interface {
+	UpdateNext(ctx context.Context, workflow models.Workflow) error
+}
+
+type ExecuteWorkFlowUseCase interface {
+	ExecuteWorkflow(ctx context.Context, workflow models.Workflow) error
+}
+
+type HandleJobResultUseCase interface {
+	HandleJobResult(ctx context.Context, jobResult models.JobResult) error
 }

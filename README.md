@@ -1,7 +1,7 @@
 # Flux
 
 Fluxd is a lightweight task scheduler daemon inspired by Airflow.  
-It manages and executes tasks, supports dependencies between tasks (DAG), ensures fault-tolerance, and logs task execution.
+It manages and executes tasks, supports dependencies between tasks, ensures fault-tolerance, and logs task execution.
 
 ---
 
@@ -23,7 +23,7 @@ It is designed to automate workflows, handle failures gracefully, and keep a rel
 ## Key Features
 
 - Execute tasks based on scheduled times (cron-like expressions).
-- Support dependencies between tasks (DAG).
+- Support dependencies between tasks.
 - Retry failed tasks and enforce execution timeouts.
 - Record task execution logs and history.
 - Maintain task metadata in a persistent store.

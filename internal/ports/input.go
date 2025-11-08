@@ -16,6 +16,14 @@ type UnscheduleWorkflowUseCase interface {
 	UnscheduleWorkflows(ctx context.Context, workflowIDs []uuid.UUID) error
 }
 
+type PauseWorkflowUseCase interface {
+	PauseWorkflow(ctx context.Context, workflowID uuid.UUID) error
+}
+
+type ResumeWorkflowUseCase interface {
+	ResumeWorkflow(ctx context.Context, workflowID uuid.UUID) error
+}
+
 type ModifyWorkflowUseCase interface {
 	ModifyWorkflow(ctx context.Context, workflow models.Workflow) error
 	ModifyWorkflows(ctx context.Context, workflows []models.Workflow) error

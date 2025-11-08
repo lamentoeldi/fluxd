@@ -58,8 +58,7 @@ func TestBuildDAGBasic(t *testing.T) {
 		}),
 	}
 
-	d := NewDAG()
-	dag, err := d.BuildDAG(context.Background(), models.Workflow{
+	dag, err := BuildDAG(context.Background(), models.Workflow{
 		ID:   uuid.New(),
 		Jobs: jobs,
 	})
@@ -97,8 +96,7 @@ func TestBuildDAGWithConditions(t *testing.T) {
 		}),
 	}
 
-	d := NewDAG()
-	dag, err := d.BuildDAG(context.Background(), models.Workflow{
+	dag, err := BuildDAG(context.Background(), models.Workflow{
 		ID:   uuid.New(),
 		Jobs: jobs,
 	})
@@ -146,6 +144,147 @@ func TestBuildDAGWithConditions(t *testing.T) {
 	}
 
 	dag.debugPrint()
+}
+
+func TestUpdateJobStatusAndReady(t *testing.T) {
+	// 1 -> 2 -> 3
+	jobs := []models.Job{
+		makeJob(1, nil),
+		makeJob(2, []models.JobDependency{
+			{DependencyID: 1, When: condOnSuccess},
+		}),
+		makeJob(3, []models.JobDependency{
+			{DependencyID: 2, When: condOnSuccess},
+		}),
+	}
+
+	dag, err := BuildDAG(t.Context(), models.Workflow{
+		ID:   uuid.UUID{},
+		Jobs: jobs,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jobResult := models.JobResult{
+		ID:     1,
+		Status: statusSuccess,
+	}
+
+	ready, err := Update(context.Background(), dag, jobResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dag[2].Status != statusPlanned {
+		t.Errorf("expected job 2 status = planned, got %s", dag[2].Status)
+	}
+
+	if dag[3].Status != statusPending {
+		t.Errorf("expected job 3 status = pending, got %s", dag[3].Status)
+	}
+
+	if len(ready) != 1 || ready[0].Job.ID != 2 {
+		t.Errorf("expected ready nodes = [2], got %+v", ready)
+	}
+}
+
+func TestUpdateJobStatusWithConditionalDeps_IndependentCases(t *testing.T) {
+	cases := []struct {
+		name       string
+		jobs       []models.Job
+		jobResult  models.JobResult
+		expPlanned []int
+		expPending []int
+	}{
+		{
+			// 1 -> 2
+			name: "job1 success triggers job2 [on-success]",
+			jobs: []models.Job{
+				makeJob(1, nil),
+				makeJob(2, []models.JobDependency{{DependencyID: 1, When: condOnSuccess}}),
+			},
+			jobResult:  models.JobResult{ID: 1, Status: statusSuccess},
+			expPlanned: []int{2},
+			expPending: []int{},
+		},
+		{
+			// 1 [on failure] -> 2
+			name: "job1 failure triggers job2 [on-failure]",
+			jobs: []models.Job{
+				makeJob(1, nil),
+				makeJob(2, []models.JobDependency{{DependencyID: 1, When: condOnFailure}}),
+			},
+			jobResult:  models.JobResult{ID: 1, Status: statusFailure},
+			expPlanned: []int{2},
+			expPending: []int{},
+		},
+		{
+			// 1 [on failure] -> 2
+			name: "job1 success does not trigger job2 [on-failure]",
+			jobs: []models.Job{
+				makeJob(1, nil),
+				makeJob(2, []models.JobDependency{{DependencyID: 1, When: condOnFailure}}),
+			},
+			jobResult:  models.JobResult{ID: 1, Status: statusSuccess},
+			expPlanned: []int{},
+			expPending: []int{2},
+		},
+		{
+			// 1 -> 2
+			name: "job1 failure does not trigger job2 [on-success]",
+			jobs: []models.Job{
+				makeJob(1, nil),
+				makeJob(2, []models.JobDependency{{DependencyID: 1, When: condOnSuccess}}),
+			},
+			jobResult:  models.JobResult{ID: 1, Status: statusFailure},
+			expPlanned: []int{},
+			expPending: []int{2},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			workflow := models.Workflow{
+				ID:   uuid.New(),
+				Jobs: c.jobs,
+			}
+
+			dag, err := BuildDAG(context.Background(), workflow)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ready, err := Update(context.Background(), dag, c.jobResult)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, id := range c.expPlanned {
+				if dag[id].Status != statusPlanned {
+					t.Errorf("expected job %d status = planned, got %s", id, dag[id].Status)
+				}
+			}
+			for _, id := range c.expPending {
+				if dag[id].Status != statusPending {
+					t.Errorf("expected job %d status = pending, got %s", id, dag[id].Status)
+				}
+			}
+
+			expReadyIDs := make(map[int]struct{})
+			for _, id := range c.expPlanned {
+				expReadyIDs[id] = struct{}{}
+			}
+			if len(ready) != len(expReadyIDs) {
+				t.Errorf("expected %d ready nodes, got %d", len(expReadyIDs), len(ready))
+			}
+			for _, n := range ready {
+				if _, ok := expReadyIDs[n.Job.ID]; !ok {
+					t.Errorf("unexpected ready node %d", n.Job.ID)
+				}
+			}
+		})
+	}
 }
 
 func TestHasCycle(t *testing.T) {
@@ -219,15 +358,13 @@ func TestHasCycle(t *testing.T) {
 		},
 	}
 
-	d := NewDAG()
-
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := t.Context()
 
 			dag := make(DAG)
-			err := d.addNodes(ctx, dag, tc.jobs)
-			err = d.linkNodes(ctx, dag)
+			err := addNodes(ctx, dag, tc.jobs)
+			err = linkNodes(ctx, dag)
 			if err != nil {
 				t.Fatal(err)
 			}

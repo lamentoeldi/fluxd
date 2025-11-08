@@ -55,7 +55,8 @@ type JobLog struct {
 }
 
 type JobResult struct {
-	ID         int `json:"id"`
+	ID         int    `json:"id"`
+	Status     string `json:"status"`
 	WorkflowID uuid.UUID
 	Logs       []JobLog `json:"logs"`
 	StartedAt  int64    `json:"started_at"`

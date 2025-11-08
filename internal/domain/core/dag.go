@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"github.com/lamentoeldi/fluxd/internal/domain/errors"
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 )
@@ -52,41 +53,87 @@ func (n *JobNode) IsReady() bool {
 	return true
 }
 
-type DAGManager struct {
-}
-
-func NewDAG() *DAGManager {
-	return &DAGManager{}
-}
-
-func (d *DAGManager) BuildDAG(
+func BuildDAG(
 	ctx context.Context,
 	workflow models.Workflow,
 ) (DAG, error) {
 	dag := make(DAG)
 
-	if err := d.addNodes(ctx, dag, workflow.Jobs); err != nil {
+	if err := addNodes(ctx, dag, workflow.Jobs); err != nil {
 		return nil, err
 	}
 
-	if err := d.linkNodes(ctx, dag); err != nil {
+	if err := linkNodes(ctx, dag); err != nil {
 		return nil, err
 	}
 
-	if err := d.validateDAG(ctx, dag); err != nil {
+	if err := validateDAG(ctx, dag); err != nil {
 		return nil, err
 	}
 
-	if err := d.setStatus(ctx, dag); err != nil {
+	if err := setStatus(ctx, dag); err != nil {
 		return nil, err
 	}
 
 	return dag, nil
 }
 
-func (d *DAGManager) addNodes(
+func Update(
 	ctx context.Context,
-	m DAG,
+	dag DAG,
+	jobResult models.JobResult,
+) ([]*JobNode, error) {
+	err := updateJobStatus(ctx, dag, jobResult)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := updateReadyJobs(ctx, dag, jobResult.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return nodes, nil
+}
+
+func updateJobStatus(
+	_ context.Context,
+	dag DAG,
+	jobResult models.JobResult,
+) error {
+	node, ok := dag[jobResult.ID]
+	if !ok {
+		return fmt.Errorf("node not found")
+	}
+
+	node.Status = jobResult.Status
+	return nil
+}
+
+func updateReadyJobs(
+	_ context.Context,
+	dag DAG,
+	jobID int,
+) ([]*JobNode, error) {
+	node, ok := dag[jobID]
+	if !ok {
+		return nil, fmt.Errorf("node not found")
+	}
+
+	ready := make([]*JobNode, 0)
+	for _, dep := range node.Dependents {
+		if dep.IsReady() && dep.Status == statusPending {
+			dep.Status = statusPlanned
+			ready = append(ready, dep)
+		}
+	}
+
+	return ready, nil
+}
+
+func addNodes(
+	ctx context.Context,
+	dag DAG,
 	jobs []models.Job,
 ) error {
 	for _, job := range jobs {
@@ -94,7 +141,7 @@ func (d *DAGManager) addNodes(
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			m[job.ID] = &JobNode{
+			dag[job.ID] = &JobNode{
 				Job:          job,
 				Dependencies: make([]*Dependency, 0, len(job.Dependencies)),
 				Dependents:   make([]*JobNode, 0),
@@ -106,17 +153,17 @@ func (d *DAGManager) addNodes(
 	return nil
 }
 
-func (d *DAGManager) linkNodes(
+func linkNodes(
 	ctx context.Context,
-	m DAG,
+	dag DAG,
 ) error {
-	for _, node := range m {
+	for _, node := range dag {
 		for _, dep := range node.Job.Dependencies {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				depNode, ok := m[dep.DependencyID]
+				depNode, ok := dag[dep.DependencyID]
 				if !ok {
 					return errors.ErrDepNotFound
 				}
@@ -133,22 +180,22 @@ func (d *DAGManager) linkNodes(
 	return nil
 }
 
-func (d *DAGManager) validateDAG(
+func validateDAG(
 	_ context.Context,
-	m DAG,
+	dag DAG,
 ) error {
-	if hasCycle(m) {
+	if hasCycle(dag) {
 		return errors.ErrCycleFound
 	}
 
 	return nil
 }
 
-func (d *DAGManager) setStatus(
+func setStatus(
 	ctx context.Context,
-	m DAG,
+	dag DAG,
 ) error {
-	for _, node := range m {
+	for _, node := range dag {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

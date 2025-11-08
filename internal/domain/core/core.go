@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"github.com/lamentoeldi/fluxd/internal/domain/errors"
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 	"time"
 )
@@ -123,8 +124,7 @@ func (c *Core) CheckDAGIsCompleted(
 	walk := func(job *models.JobNode) error {
 		if job.Status != models.StatusSuccess {
 			completed = false
-			// signal error must be added to prevent bfs from further work
-			return nil
+			return errors.ErrStopTraversal
 		}
 		return nil
 	}
@@ -146,8 +146,7 @@ func (c *Core) CheckDAGIsFailed(
 		if job.Status == models.StatusFailure && job.Job.Retries < 1 && len(job.Dependents) > 0 {
 			failed = true
 		}
-		// signal error must be added to prevent bfs from further work
-		return nil
+		return errors.ErrStopTraversal
 	}
 
 	if err := bfsDAG(ctx, dag, walk); err != nil {

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	stderr "errors"
 	"fmt"
 	"github.com/lamentoeldi/fluxd/internal/domain/errors"
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
@@ -58,7 +59,11 @@ func updateJobStatus(
 ) error {
 	node, ok := dag[jobResult.ID]
 	if !ok {
-		return fmt.Errorf("node not found")
+		return errors.ErrNodeNotFound
+	}
+
+	if node.Status != models.StatusRunning {
+		return errors.ErrInvalidStatus
 	}
 
 	node.Status = jobResult.Status
@@ -313,7 +318,12 @@ func dfsDAG(
 				continue
 			}
 
-			if err := walk(node); err != nil {
+			err := walk(node)
+			if stderr.Is(err, errors.ErrStopTraversal) {
+				return nil
+			}
+
+			if err != nil {
 				return err
 			}
 
@@ -362,7 +372,12 @@ func bfsDAG(
 				continue
 			}
 
-			if err := walk(node); err != nil {
+			err := walk(node)
+			if stderr.Is(err, errors.ErrStopTraversal) {
+				return nil
+			}
+
+			if err != nil {
 				return err
 			}
 

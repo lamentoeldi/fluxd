@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"github.com/lamentoeldi/fluxd/internal/domain/core"
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 	"github.com/lamentoeldi/fluxd/internal/ports"
 )
@@ -41,7 +40,7 @@ func (uc *ScheduleWorkflowUseCase) scheduleWorkflows(
 	workflows []models.Workflow,
 ) error {
 	for _, workflow := range workflows {
-		_, err := core.BuildDAG(ctx, workflow)
+		_, err := uc.core.BuildDAG(ctx, workflow)
 		if err != nil {
 			return err
 		}

@@ -36,7 +36,7 @@ func (uc *HandleJobResultUseCase) HandleJobResult(
 		return err
 	}
 
-	dag, err = uc.core.UpdateDAG(ctx, dag, jobResult)
+	err = uc.core.UpdateDAG(ctx, dag, jobResult)
 	if err != nil {
 		return err
 	}

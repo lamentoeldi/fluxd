@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"github.com/lamentoeldi/fluxd/internal/domain/errors"
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
+	"sync"
 )
 
-func BuildDAG(
+func buildDAG(
 	ctx context.Context,
 	workflow models.Workflow,
 ) (models.DAG, error) {
@@ -32,7 +33,7 @@ func BuildDAG(
 	return dag, nil
 }
 
-func Update(
+func updateDAG(
 	ctx context.Context,
 	dag models.DAG,
 	jobResult models.JobResult,
@@ -163,7 +164,9 @@ func setStatus(
 	return nil
 }
 
-func hasCycle(d models.DAG) bool {
+func hasCycle(
+	d models.DAG,
+) bool {
 	const (
 		grey  = "grey"
 		black = "black"
@@ -207,4 +210,174 @@ func hasCycle(d models.DAG) bool {
 	}
 
 	return false
+}
+
+type walkFunc func(node *models.JobNode) error
+
+type stack[T any] struct {
+	stack []T
+	mu    sync.RWMutex
+}
+
+func (s *stack[T]) Len() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return len(s.stack)
+}
+
+func (s *stack[T]) Push(v T) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.stack = append(s.stack, v)
+}
+
+func (s *stack[T]) Pop() T {
+	if s.Len() < 1 {
+		var zero T
+		return zero
+	}
+
+	lastIdx := s.Len() - 1
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	last := s.stack[lastIdx]
+
+	s.stack = s.stack[:lastIdx]
+	return last
+}
+
+type queue[T any] struct {
+	queue []T
+	mu    sync.RWMutex
+}
+
+func (q *queue[T]) Len() int {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
+	return len(q.queue)
+}
+
+func (q *queue[T]) Push(v T) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	q.queue = append(q.queue, v)
+}
+
+func (q *queue[T]) Pop() T {
+	if q.Len() < 1 {
+		var zero T
+		return zero
+	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	first := q.queue[0]
+
+	q.queue = q.queue[1:]
+	return first
+}
+
+func dfsDAG(
+	ctx context.Context,
+	dag models.DAG,
+	walk walkFunc,
+) error {
+	s := stack[int]{}
+	visited := make(map[int]struct{})
+
+	for id := range dag {
+		if _, ok := visited[id]; ok {
+			continue
+		}
+
+		s.Push(id)
+
+		for s.Len() > 0 {
+			curr := s.Pop()
+
+			if _, ok := visited[curr]; ok {
+				continue
+			}
+
+			visited[curr] = struct{}{}
+
+			node, ok := dag[curr]
+			if !ok {
+				continue
+			}
+
+			if err := walk(node); err != nil {
+				return err
+			}
+
+			for _, dep := range node.Dependents {
+				if _, ok := visited[dep.Job.ID]; !ok {
+					s.Push(dep.Job.ID)
+				}
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	return nil
+}
+
+func bfsDAG(
+	ctx context.Context,
+	dag models.DAG,
+	walk walkFunc,
+) error {
+	q := queue[int]{}
+	visited := make(map[int]struct{})
+
+	for id := range dag {
+		if _, ok := visited[id]; ok {
+			continue
+		}
+
+		q.Push(id)
+
+		for q.Len() > 0 {
+			curr := q.Pop()
+
+			if _, ok := visited[curr]; ok {
+				continue
+			}
+
+			visited[curr] = struct{}{}
+
+			node, ok := dag[curr]
+			if !ok {
+				continue
+			}
+
+			if err := walk(node); err != nil {
+				return err
+			}
+
+			for _, dep := range node.Dependents {
+				if _, ok := visited[dep.Job.ID]; !ok {
+					q.Push(dep.Job.ID)
+				}
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	return nil
 }

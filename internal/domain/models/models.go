@@ -116,5 +116,9 @@ func (n *JobNode) IsReady() bool {
 		}
 	}
 
+	if n.Status != StatusPlanned {
+		return false
+	}
+
 	return true
 }

@@ -58,7 +58,7 @@ func TestBuildDAGBasic(t *testing.T) {
 		}),
 	}
 
-	dag, err := BuildDAG(context.Background(), models.Workflow{
+	dag, err := buildDAG(context.Background(), models.Workflow{
 		ID:   uuid.New(),
 		Jobs: jobs,
 	})
@@ -96,7 +96,7 @@ func TestBuildDAGWithConditions(t *testing.T) {
 		}),
 	}
 
-	dag, err := BuildDAG(context.Background(), models.Workflow{
+	dag, err := buildDAG(context.Background(), models.Workflow{
 		ID:   uuid.New(),
 		Jobs: jobs,
 	})
@@ -158,7 +158,7 @@ func TestUpdateJobStatusAndReady(t *testing.T) {
 		}),
 	}
 
-	dag, err := BuildDAG(t.Context(), models.Workflow{
+	dag, err := buildDAG(t.Context(), models.Workflow{
 		ID:   uuid.UUID{},
 		Jobs: jobs,
 	})
@@ -171,7 +171,7 @@ func TestUpdateJobStatusAndReady(t *testing.T) {
 		Status: models.StatusSuccess,
 	}
 
-	ready, err := Update(context.Background(), dag, jobResult)
+	ready, err := updateDAG(context.Background(), dag, jobResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,12 +250,12 @@ func TestUpdateJobStatusWithConditionalDeps_IndependentCases(t *testing.T) {
 				Jobs: c.jobs,
 			}
 
-			dag, err := BuildDAG(context.Background(), workflow)
+			dag, err := buildDAG(context.Background(), workflow)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			ready, err := Update(context.Background(), dag, c.jobResult)
+			ready, err := updateDAG(context.Background(), dag, c.jobResult)
 			if err != nil {
 				t.Fatal(err)
 			}

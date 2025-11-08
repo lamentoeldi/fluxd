@@ -2,10 +2,8 @@ package core
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"github.com/lamentoeldi/fluxd/internal/domain/errors"
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
-	"sync"
 )
 
 const (
@@ -16,7 +14,7 @@ const (
 	statusFailed  = "failed"
 )
 
-type jobGraph map[uuid.UUID]*JobNode
+type DAG map[int]*JobNode
 
 type JobNode struct {
 	Job          models.Job
@@ -25,44 +23,57 @@ type JobNode struct {
 	Status       string
 }
 
-type DAG struct {
-	jobs jobGraph
-	mu   sync.RWMutex
+func (n *JobNode) IsReady() bool {
+	if n.Status != statusPlanned {
+		return false
+	}
+
+	for _, dep := range n.Dependencies {
+		if dep.Status != statusSuccess {
+			return false
+		}
+	}
+
+	return true
 }
 
-func NewDAG() *DAG {
-	return &DAG{
-		jobs: make(jobGraph),
-	}
+type DAGManager struct {
 }
 
-func (d *DAG) Add(ctx context.Context, jobs []models.Job) error {
-	m := make(jobGraph)
-
-	if err := d.addNodes(ctx, m, jobs); err != nil {
-		return err
-	}
-
-	if err := d.linkNodes(ctx, m); err != nil {
-		return err
-	}
-
-	if err := d.validateDAG(ctx, m); err != nil {
-		return err
-	}
-
-	if err := d.setStatus(ctx, m); err != nil {
-		return err
-	}
-
-	if err := d.mergeDAG(ctx, m); err != nil {
-		return err
-	}
-
-	return nil
+func NewDAG() *DAGManager {
+	return &DAGManager{}
 }
 
-func (d *DAG) addNodes(ctx context.Context, m jobGraph, jobs []models.Job) error {
+func (d *DAGManager) BuildDAG(
+	ctx context.Context,
+	workflow models.Workflow,
+) (DAG, error) {
+	dag := make(DAG)
+
+	if err := d.addNodes(ctx, dag, workflow.Jobs); err != nil {
+		return nil, err
+	}
+
+	if err := d.linkNodes(ctx, dag); err != nil {
+		return nil, err
+	}
+
+	if err := d.validateDAG(ctx, dag); err != nil {
+		return nil, err
+	}
+
+	if err := d.setStatus(ctx, dag); err != nil {
+		return nil, err
+	}
+
+	return dag, nil
+}
+
+func (d *DAGManager) addNodes(
+	ctx context.Context,
+	m DAG,
+	jobs []models.Job,
+) error {
 	for _, job := range jobs {
 		select {
 		case <-ctx.Done():
@@ -80,7 +91,10 @@ func (d *DAG) addNodes(ctx context.Context, m jobGraph, jobs []models.Job) error
 	return nil
 }
 
-func (d *DAG) linkNodes(ctx context.Context, m jobGraph) error {
+func (d *DAGManager) linkNodes(
+	ctx context.Context,
+	m DAG,
+) error {
 	for _, node := range m {
 		for _, depID := range node.Job.Dependencies {
 			select {
@@ -101,11 +115,17 @@ func (d *DAG) linkNodes(ctx context.Context, m jobGraph) error {
 	return nil
 }
 
-func (d *DAG) validateDAG(ctx context.Context, m jobGraph) error {
+func (d *DAGManager) validateDAG(
+	ctx context.Context,
+	m DAG,
+) error {
 	return nil
 }
 
-func (d *DAG) setStatus(ctx context.Context, m jobGraph) error {
+func (d *DAGManager) setStatus(
+	ctx context.Context,
+	m DAG,
+) error {
 	for _, node := range m {
 		select {
 		case <-ctx.Done():
@@ -114,22 +134,6 @@ func (d *DAG) setStatus(ctx context.Context, m jobGraph) error {
 			if len(node.Dependencies) < 1 {
 				node.Status = statusPlanned
 			}
-		}
-	}
-
-	return nil
-}
-
-func (d *DAG) mergeDAG(ctx context.Context, m jobGraph) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		d.mu.Lock()
-		defer d.mu.Unlock()
-
-		for key, val := range m {
-			d.jobs[key] = val
 		}
 	}
 

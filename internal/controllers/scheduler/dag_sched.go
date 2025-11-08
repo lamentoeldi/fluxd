@@ -5,15 +5,22 @@ import (
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 	"github.com/lamentoeldi/fluxd/internal/ports"
 	"go.uber.org/zap"
+	"sync"
 )
 
+type DAGSchedulerConfig struct {
+	Workers int `env:"WORKERS" env-default:"1"`
+}
+
 type DAGScheduler struct {
+	cfg               DAGSchedulerConfig
 	log               *zap.Logger
 	jobs              ports.JobBus
 	jobResults        ports.JobResultBus
 	jobResultsHandler ports.HandleJobResultUseCase
 	workflows         ports.WorkflowBus
 	workflowExecutor  ports.ExecuteWorkFlowUseCase
+	wg                sync.WaitGroup
 }
 
 func NewDAGScheduler(
@@ -45,10 +52,25 @@ func (d *DAGScheduler) Start(ctx context.Context) error {
 		return err
 	}
 
-	go d.startWorkflows(ctx, workflows)
-	go d.startJobResults(ctx, jobResults)
+	d.wg.Add(2 * d.cfg.Workers)
+	for range d.cfg.Workers {
+		go func() {
+			defer d.wg.Done()
+
+			d.startWorkflows(ctx, workflows)
+		}()
+		go func() {
+			defer d.wg.Done()
+
+			d.startJobResults(ctx, jobResults)
+		}()
+	}
 
 	return nil
+}
+
+func (d *DAGScheduler) Wait() {
+	d.wg.Wait()
 }
 
 func (d *DAGScheduler) startWorkflows(

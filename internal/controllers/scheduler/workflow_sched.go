@@ -6,6 +6,7 @@ import (
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 	"github.com/lamentoeldi/fluxd/internal/ports"
 	"go.uber.org/zap"
+	"sync"
 	"time"
 )
 
@@ -29,6 +30,7 @@ type WorkflowScheduler struct {
 	getWorkflows    ports.GetWorkflowsUseCase
 	publishWorkflow ports.PublishWorkflowUseCase
 	updateWorkflow  ports.UpdateWorkflowUseCase
+	wg              sync.WaitGroup
 }
 
 func NewWorkflowScheduler(
@@ -54,7 +56,7 @@ func NewWorkflowScheduler(
 func (w *WorkflowScheduler) Start(
 	ctx context.Context,
 ) error {
-	t := time.NewTimer(w.cfg.SchedulerBackoff)
+	t := time.NewTicker(w.cfg.SchedulerBackoff)
 	defer t.Stop()
 
 	for {
@@ -67,6 +69,10 @@ func (w *WorkflowScheduler) Start(
 			}
 		}
 	}
+}
+
+func (w *WorkflowScheduler) Wait() {
+	w.wg.Wait()
 }
 
 func (w *WorkflowScheduler) scheduleWorkflows(
@@ -84,20 +90,27 @@ func (w *WorkflowScheduler) scheduleWorkflows(
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			if err := w.enqueueWorkflow(ctx, now, workflow); err != nil {
-				w.log.Error(
-					"failed to plan workflow",
-					zap.String("workflow-id", workflow.ID.String()),
-					zap.Error(err),
-				)
-			} else {
-				w.log.Info(
-					"scheduled workflow",
-					zap.String("workflow-id", workflow.ID.String()),
-				)
-			}
+			go func() {
+				w.wg.Add(1)
+				defer w.wg.Done()
+
+				if err := w.enqueueWorkflow(ctx, now, workflow); err != nil {
+					w.log.Error(
+						"failed to plan workflow",
+						zap.String("workflow-id", workflow.ID.String()),
+						zap.Error(err),
+					)
+				} else {
+					w.log.Info(
+						"scheduled workflow",
+						zap.String("workflow-id", workflow.ID.String()),
+					)
+				}
+			}()
 		}
 	}
+
+	w.wg.Wait()
 
 	return nil
 }

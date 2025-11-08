@@ -46,3 +46,7 @@ type ExecuteWorkFlowUseCase interface {
 type HandleJobResultUseCase interface {
 	HandleJobResult(ctx context.Context, jobResult models.JobResult) error
 }
+
+type RunJobUseCase interface {
+	RunJob(ctx context.Context, job models.Job) (models.JobResult, error)
+}

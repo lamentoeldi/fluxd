@@ -1,0 +1,90 @@
+syntax = "proto3";
+option go_package = "github.com/lamentoeldi/flux/grpc";
+
+service Flux {
+  rpc ScheduleWorkflows (ScheduleWorkflowsRequest) returns (ScheduleWorkflowsResponse);
+  rpc UnscheduleWorkflows (UnscheduleWorkflowsRequest) returns (UnscheduleWorkflowsResponse);
+  rpc PauseWorkflow (PauseWorkflowsRequest) returns (PauseWorkflowsResponse);
+  rpc ResumeWorkflow (ResumeWorkflowsRequest) returns (ResumeWorkflowsResponse);
+  rpc ModifyWorkflows (ModifyWorkflowsRequest) returns (ModifyWorkflowsResponse);
+  rpc ForceRunWorkflows (ForceRunWorkflowsRequest) returns (ForceRunWorkflowsResponse);
+  rpc GetWorkflows (GetWorkflowsRequest) returns (GetWorkflowsResponse);
+}
+
+message ScheduleWorkflowsRequest {
+  repeated Workflow workflows = 1;
+}
+
+message ScheduleWorkflowsResponse {}
+
+message UnscheduleWorkflowsRequest {
+  repeated string workflow_ids = 1;
+}
+
+message UnscheduleWorkflowsResponse {}
+
+message PauseWorkflowsRequest {
+  repeated string workflow_ids = 1;
+}
+
+message PauseWorkflowsResponse {}
+
+message ResumeWorkflowsRequest {
+  repeated string workflow_ids = 1;
+}
+
+message ResumeWorkflowsResponse {}
+
+message ModifyWorkflowsRequest {
+  repeated Workflow workflows = 1;
+}
+
+message ModifyWorkflowsResponse {}
+
+message ForceRunWorkflowsRequest {
+  repeated string workflow_ids = 1;
+}
+
+message ForceRunWorkflowsResponse {}
+
+message GetWorkflowsRequest {
+  repeated string workflows_ids = 1;
+}
+
+message GetWorkflowsResponse {
+  repeated Workflow workflows = 1;
+}
+
+message Workflow {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated WorkflowSchedule schedules = 4;
+  string log_driver = 5;
+  int64 created_at = 6;
+  repeated Job jobs = 7;
+  bool enabled = 8;
+}
+
+message WorkflowSchedule {
+  int64 next_run = 1;
+  int64 repeat_every = 2;
+  int64 times = 3;
+}
+
+message Job {
+  int64 id = 1;
+  string workflow_id = 2;
+  string name = 3;
+  string executor = 4;
+  repeated string commands = 5;
+  repeated JobDependency dependencies = 6;
+  int64 retries = 7;
+  int64 retry_backoff = 8;
+  int64 timeout = 9;
+}
+
+message JobDependency {
+  int64 dependency_id = 1;
+  string when = 2;
+}

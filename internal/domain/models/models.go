@@ -19,13 +19,14 @@ const (
 )
 
 type Workflow struct {
-	ID        uuid.UUID          `json:"id"`
-	Name      string             `json:"name"`
-	Schedules []WorkflowSchedule `json:"schedules"`
-	LogDriver string             `json:"log_driver"`
-	CreatedAt int64              `json:"created_at"`
-	Jobs      []Job              `json:"jobs"`
-	Enabled   bool               `json:"enabled"`
+	ID          uuid.UUID          `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Schedules   []WorkflowSchedule `json:"schedules"`
+	LogDriver   string             `json:"log_driver"`
+	CreatedAt   int64              `json:"created_at"`
+	Jobs        []Job              `json:"jobs"`
+	Enabled     bool               `json:"enabled"`
 }
 
 type WorkflowSchedule struct {

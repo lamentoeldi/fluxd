@@ -18,22 +18,22 @@ type WorkflowQuery interface {
 	GetAll(ctx context.Context) ([]models.Workflow, error)
 }
 
+type MessageBus[T any] interface {
+	Send(ctx context.Context, msg T) error
+	SendMany(ctx context.Context, msgs []T) error
+	Recv(ctx context.Context) (<-chan T, error)
+}
+
 type WorkflowBus interface {
-	SendWorkflow(ctx context.Context, workflow models.Workflow) error
-	SendWorkflows(ctx context.Context, workflow []models.Workflow) error
-	RecvWorkflows(ctx context.Context) (<-chan models.Workflow, error)
+	MessageBus[models.Workflow]
 }
 
 type JobBus interface {
-	SendJob(ctx context.Context, job models.Job) error
-	SendJobs(ctx context.Context, job []models.Job) error
-	RecvJobs(ctx context.Context) (<-chan models.Job, error)
+	MessageBus[models.Job]
 }
 
 type JobResultBus interface {
-	SendJobResult(ctx context.Context, job models.JobResult) error
-	SendJobResults(ctx context.Context, job []models.JobResult) error
-	RecvJobResults(ctx context.Context) (<-chan models.JobResult, error)
+	MessageBus[models.JobResult]
 }
 
 type JobResultCommand interface {

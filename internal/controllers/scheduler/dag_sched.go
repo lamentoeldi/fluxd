@@ -35,12 +35,12 @@ func NewDAGScheduler(
 }
 
 func (d *DAGScheduler) Start(ctx context.Context) error {
-	workflows, err := d.workflows.RecvWorkflows(ctx)
+	workflows, err := d.workflows.Recv(ctx)
 	if err != nil {
 		return err
 	}
 
-	jobResults, err := d.jobResults.RecvJobResults(ctx)
+	jobResults, err := d.jobResults.Recv(ctx)
 	if err != nil {
 		return err
 	}

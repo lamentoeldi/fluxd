@@ -12,28 +12,40 @@ type Workflow struct {
 	LogDriver string             `json:"log_driver"`
 	CreatedAt int64              `json:"created_at"`
 	Jobs      []Job              `json:"jobs"`
+	Enabled   bool               `json:"enabled"`
 }
 
 type WorkflowSchedule struct {
 	NextRun     time.Time     `json:"next_run"`
 	RepeatEvery time.Duration `json:"repeat_every"`
-	Times       []int         `json:"times,omitempty"`
+	Times       int           `json:"times,omitempty"`
 }
 
 func (w *WorkflowSchedule) UpdateNext() {
-	w.NextRun = w.NextRun.Add(w.RepeatEvery)
+	if w.Times > 0 || w.Times == -1 {
+		w.NextRun = w.NextRun.Add(w.RepeatEvery)
+	}
+
+	if w.Times > 0 {
+		w.Times--
+	}
 }
 
 type Job struct {
 	ID           int `json:"id"`
 	WorkflowID   uuid.UUID
-	Name         string        `json:"name"`
-	Executor     string        `json:"executor"`
-	Commands     []string      `json:"commands"`
-	Dependencies []int         `json:"dependencies"`
-	Retries      int           `json:"retries"`
-	RetryBackoff time.Duration `json:"retry_backoff"`
-	Timeout      time.Duration `json:"timeout"`
+	Name         string          `json:"name"`
+	Executor     string          `json:"executor"`
+	Commands     []string        `json:"commands"`
+	Dependencies []JobDependency `json:"dependencies"`
+	Retries      int             `json:"retries"`
+	RetryBackoff time.Duration   `json:"retry_backoff"`
+	Timeout      time.Duration   `json:"timeout"`
+}
+
+type JobDependency struct {
+	DependencyID int    `json:"dependency_id"`
+	When         string `json:"when"`
 }
 
 type JobLog struct {

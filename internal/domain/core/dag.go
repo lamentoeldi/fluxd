@@ -11,26 +11,41 @@ const (
 	statusPlanned = "planned"
 	statusRunning = "running"
 	statusSuccess = "success"
-	statusFailed  = "failed"
+	statusFailure = "failure"
+)
+
+const (
+	condOnSuccess = "on-success"
+	condOnFailure = "on-failure"
 )
 
 type DAG map[int]*JobNode
 
 type JobNode struct {
 	Job          models.Job
-	Dependencies []*JobNode
+	Dependencies []*Dependency
 	Dependents   []*JobNode
 	Status       string
 }
 
-func (n *JobNode) IsReady() bool {
-	if n.Status != statusPlanned {
-		return false
-	}
+type Dependency struct {
+	*JobNode
+	When string
+}
 
+func (n *JobNode) IsReady() bool {
 	for _, dep := range n.Dependencies {
-		if dep.Status != statusSuccess {
-			return false
+		switch dep.When {
+		case condOnFailure:
+			if dep.Status != statusFailure {
+				return false
+			}
+		case condOnSuccess:
+			fallthrough
+		default:
+			if dep.Status != statusSuccess {
+				return false
+			}
 		}
 	}
 
@@ -81,7 +96,7 @@ func (d *DAGManager) addNodes(
 		default:
 			m[job.ID] = &JobNode{
 				Job:          job,
-				Dependencies: make([]*JobNode, 0, len(job.Dependencies)),
+				Dependencies: make([]*Dependency, 0, len(job.Dependencies)),
 				Dependents:   make([]*JobNode, 0),
 				Status:       statusPending,
 			}
@@ -96,17 +111,20 @@ func (d *DAGManager) linkNodes(
 	m DAG,
 ) error {
 	for _, node := range m {
-		for _, depID := range node.Job.Dependencies {
+		for _, dep := range node.Job.Dependencies {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				depNode, ok := m[depID]
+				depNode, ok := m[dep.DependencyID]
 				if !ok {
 					return errors.ErrDepNotFound
 				}
 
-				node.Dependencies = append(node.Dependencies, depNode)
+				node.Dependencies = append(node.Dependencies, &Dependency{
+					JobNode: depNode,
+					When:    dep.When,
+				})
 				depNode.Dependents = append(depNode.Dependents, node)
 			}
 		}

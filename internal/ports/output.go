@@ -9,12 +9,16 @@ import (
 type WorkflowCommand interface {
 	Add(ctx context.Context, workflow models.Workflow) error
 	AddMany(ctx context.Context, workflow []models.Workflow) error
-	Update(ctx context.Context, workflow models.Workflow) error
+	Update(ctx context.Context, upd models.WorkflowUpdate) error
+	Replace(ctx context.Context, workflow models.Workflow) error
+	ReplaceMany(ctx context.Context, workflow []models.Workflow) error
 	Delete(ctx context.Context, workflowID uuid.UUID) error
+	DeleteMany(ctx context.Context, workflowIDs []uuid.UUID) error
 }
 
 type WorkflowQuery interface {
 	Get(ctx context.Context, workflow uuid.UUID) (models.Workflow, error)
+	GetMany(ctx context.Context, workflowIDs []uuid.UUID) ([]models.Workflow, error)
 	GetAll(ctx context.Context) ([]models.Workflow, error)
 }
 
@@ -42,7 +46,14 @@ type JobResultCommand interface {
 }
 
 type DAGCommand interface {
+	Add(ctx context.Context, dag models.DAG) error
 }
 
 type DAGQuery interface {
+	GetByWorkflowID(ctx context.Context, workflowID uuid.UUID) (models.DAG, error)
+	GetAll(ctx context.Context) ([]models.DAG, error)
+}
+
+type JobExecutor interface {
+	ExecuteJob(ctx context.Context, job models.Job) (models.JobResult, error)
 }

@@ -2,10 +2,24 @@ package usecases
 
 import (
 	"context"
+	"github.com/lamentoeldi/fluxd/internal/domain/core"
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
+	"github.com/lamentoeldi/fluxd/internal/ports"
 )
 
 type ScheduleWorkflowUseCase struct {
+	core            Core
+	workflowCommand ports.WorkflowCommand
+}
+
+func NewScheduleWorkflowUseCase(
+	core Core,
+	workflowCommand ports.WorkflowCommand,
+) *ScheduleWorkflowUseCase {
+	return &ScheduleWorkflowUseCase{
+		core:            core,
+		workflowCommand: workflowCommand,
+	}
 }
 
 func (uc *ScheduleWorkflowUseCase) ScheduleWorkflow(
@@ -26,7 +40,12 @@ func (uc *ScheduleWorkflowUseCase) scheduleWorkflows(
 	ctx context.Context,
 	workflows []models.Workflow,
 ) error {
-	// 1. build DAG and validate workflow
-	// 2. save workflow do storage
-	panic("unimplemented")
+	for _, workflow := range workflows {
+		_, err := core.BuildDAG(ctx, workflow)
+		if err != nil {
+			return err
+		}
+	}
+
+	return uc.workflowCommand.AddMany(ctx, workflows)
 }

@@ -5,6 +5,19 @@ import (
 	"time"
 )
 
+const (
+	StatusPending = "pending"
+	StatusPlanned = "planned"
+	StatusRunning = "running"
+	StatusSuccess = "success"
+	StatusFailure = "failure"
+)
+
+const (
+	CondOnSuccess = "on-success"
+	CondOnFailure = "on-failure"
+)
+
 type Workflow struct {
 	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
@@ -29,6 +42,15 @@ func (w *WorkflowSchedule) UpdateNext() {
 	if w.Times > 0 {
 		w.Times--
 	}
+}
+
+type WorkflowUpdate struct {
+	ID        uuid.UUID
+	Name      *string
+	Enabled   *bool
+	LogDriver *string
+	Schedules []WorkflowSchedule
+	Jobs      []Job
 }
 
 type Job struct {
@@ -61,4 +83,37 @@ type JobResult struct {
 	Logs       []JobLog `json:"logs"`
 	StartedAt  int64    `json:"started_at"`
 	FinishedAt int64    `json:"finished_at"`
+}
+
+type DAG map[int]*JobNode
+
+type JobNode struct {
+	Job          Job
+	Dependencies []*Dependency
+	Dependents   []*JobNode
+	Status       string
+}
+
+type Dependency struct {
+	*JobNode
+	When string
+}
+
+func (n *JobNode) IsReady() bool {
+	for _, dep := range n.Dependencies {
+		switch dep.When {
+		case CondOnFailure:
+			if dep.Status != StatusFailure {
+				return false
+			}
+		case CondOnSuccess:
+			fallthrough
+		default:
+			if dep.Status != StatusSuccess {
+				return false
+			}
+		}
+	}
+
+	return true
 }

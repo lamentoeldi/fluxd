@@ -7,57 +7,11 @@ import (
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 )
 
-const (
-	statusPending = "pending"
-	statusPlanned = "planned"
-	statusRunning = "running"
-	statusSuccess = "success"
-	statusFailure = "failure"
-)
-
-const (
-	condOnSuccess = "on-success"
-	condOnFailure = "on-failure"
-)
-
-type DAG map[int]*JobNode
-
-type JobNode struct {
-	Job          models.Job
-	Dependencies []*Dependency
-	Dependents   []*JobNode
-	Status       string
-}
-
-type Dependency struct {
-	*JobNode
-	When string
-}
-
-func (n *JobNode) IsReady() bool {
-	for _, dep := range n.Dependencies {
-		switch dep.When {
-		case condOnFailure:
-			if dep.Status != statusFailure {
-				return false
-			}
-		case condOnSuccess:
-			fallthrough
-		default:
-			if dep.Status != statusSuccess {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
 func BuildDAG(
 	ctx context.Context,
 	workflow models.Workflow,
-) (DAG, error) {
-	dag := make(DAG)
+) (models.DAG, error) {
+	dag := make(models.DAG)
 
 	if err := addNodes(ctx, dag, workflow.Jobs); err != nil {
 		return nil, err
@@ -80,25 +34,25 @@ func BuildDAG(
 
 func Update(
 	ctx context.Context,
-	dag DAG,
+	dag models.DAG,
 	jobResult models.JobResult,
-) ([]*JobNode, error) {
+) error {
 	err := updateJobStatus(ctx, dag, jobResult)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	nodes, err := updateReadyJobs(ctx, dag, jobResult.ID)
+	_, err = updateReadyJobs(ctx, dag, jobResult.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return nodes, nil
+	return nil
 }
 
 func updateJobStatus(
 	_ context.Context,
-	dag DAG,
+	dag models.DAG,
 	jobResult models.JobResult,
 ) error {
 	node, ok := dag[jobResult.ID]
@@ -112,18 +66,18 @@ func updateJobStatus(
 
 func updateReadyJobs(
 	_ context.Context,
-	dag DAG,
+	dag models.DAG,
 	jobID int,
-) ([]*JobNode, error) {
+) ([]*models.JobNode, error) {
 	node, ok := dag[jobID]
 	if !ok {
 		return nil, fmt.Errorf("node not found")
 	}
 
-	ready := make([]*JobNode, 0)
+	ready := make([]*models.JobNode, 0)
 	for _, dep := range node.Dependents {
-		if dep.IsReady() && dep.Status == statusPending {
-			dep.Status = statusPlanned
+		if dep.IsReady() && dep.Status == models.StatusPending {
+			dep.Status = models.StatusPlanned
 			ready = append(ready, dep)
 		}
 	}
@@ -133,7 +87,7 @@ func updateReadyJobs(
 
 func addNodes(
 	ctx context.Context,
-	dag DAG,
+	dag models.DAG,
 	jobs []models.Job,
 ) error {
 	for _, job := range jobs {
@@ -141,11 +95,11 @@ func addNodes(
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			dag[job.ID] = &JobNode{
+			dag[job.ID] = &models.JobNode{
 				Job:          job,
-				Dependencies: make([]*Dependency, 0, len(job.Dependencies)),
-				Dependents:   make([]*JobNode, 0),
-				Status:       statusPending,
+				Dependencies: make([]*models.Dependency, 0, len(job.Dependencies)),
+				Dependents:   make([]*models.JobNode, 0),
+				Status:       models.StatusPending,
 			}
 		}
 	}
@@ -155,7 +109,7 @@ func addNodes(
 
 func linkNodes(
 	ctx context.Context,
-	dag DAG,
+	dag models.DAG,
 ) error {
 	for _, node := range dag {
 		for _, dep := range node.Job.Dependencies {
@@ -168,7 +122,7 @@ func linkNodes(
 					return errors.ErrDepNotFound
 				}
 
-				node.Dependencies = append(node.Dependencies, &Dependency{
+				node.Dependencies = append(node.Dependencies, &models.Dependency{
 					JobNode: depNode,
 					When:    dep.When,
 				})
@@ -182,7 +136,7 @@ func linkNodes(
 
 func validateDAG(
 	_ context.Context,
-	dag DAG,
+	dag models.DAG,
 ) error {
 	if hasCycle(dag) {
 		return errors.ErrCycleFound
@@ -193,7 +147,7 @@ func validateDAG(
 
 func setStatus(
 	ctx context.Context,
-	dag DAG,
+	dag models.DAG,
 ) error {
 	for _, node := range dag {
 		select {
@@ -201,7 +155,7 @@ func setStatus(
 			return ctx.Err()
 		default:
 			if len(node.Dependencies) < 1 {
-				node.Status = statusPlanned
+				node.Status = models.StatusPlanned
 			}
 		}
 	}
@@ -209,7 +163,7 @@ func setStatus(
 	return nil
 }
 
-func hasCycle(d DAG) bool {
+func hasCycle(d models.DAG) bool {
 	const (
 		grey  = "grey"
 		black = "black"

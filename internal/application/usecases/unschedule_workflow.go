@@ -3,9 +3,19 @@ package usecases
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/lamentoeldi/fluxd/internal/ports"
 )
 
 type UnscheduleWorkflowUseCase struct {
+	workflowCommand ports.WorkflowCommand
+}
+
+func NewUnscheduleWorkflowUseCase(
+	workflowCommand ports.WorkflowCommand,
+) *UnscheduleWorkflowUseCase {
+	return &UnscheduleWorkflowUseCase{
+		workflowCommand: workflowCommand,
+	}
 }
 
 func (uc *UnscheduleWorkflowUseCase) UnscheduleWorkflow(
@@ -26,6 +36,5 @@ func (uc *UnscheduleWorkflowUseCase) unscheduleWorkflows(
 	ctx context.Context,
 	workflowIDs []uuid.UUID,
 ) error {
-	// 1. remove workflows from storage
-	panic("implement me")
+	return uc.workflowCommand.DeleteMany(ctx, workflowIDs)
 }

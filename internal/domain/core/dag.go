@@ -134,9 +134,13 @@ func (d *DAGManager) linkNodes(
 }
 
 func (d *DAGManager) validateDAG(
-	ctx context.Context,
+	_ context.Context,
 	m DAG,
 ) error {
+	if hasCycle(m) {
+		return errors.ErrCycleFound
+	}
+
 	return nil
 }
 
@@ -156,4 +160,50 @@ func (d *DAGManager) setStatus(
 	}
 
 	return nil
+}
+
+func hasCycle(d DAG) bool {
+	const (
+		grey  = "grey"
+		black = "black"
+	)
+
+	colors := make(map[int]string)
+
+	for id := range d {
+		if colors[id] != "" {
+			continue
+		}
+
+		stack := []int{id}
+
+		for len(stack) > 0 {
+			curr := stack[len(stack)-1]
+
+			if colors[curr] == grey {
+				colors[curr] = black
+				stack = stack[:len(stack)-1]
+				continue
+			}
+
+			if colors[curr] == black {
+				stack = stack[:len(stack)-1]
+				continue
+			}
+
+			colors[curr] = grey
+
+			for _, dep := range d[curr].Dependents {
+				childID := dep.Job.ID
+				if colors[childID] == grey {
+					return true
+				}
+				if colors[childID] == "" {
+					stack = append(stack, childID)
+				}
+			}
+		}
+	}
+
+	return false
 }

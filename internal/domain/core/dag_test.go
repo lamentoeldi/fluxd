@@ -147,3 +147,95 @@ func TestBuildDAGWithConditions(t *testing.T) {
 
 	dag.debugPrint()
 }
+
+func TestHasCycle(t *testing.T) {
+	cases := []struct {
+		name     string
+		jobs     []models.Job
+		expected bool
+	}{
+		{
+			name: "no cycle",
+			// 1 -> 2
+			// 1 -> 3
+			// 2, 3 -> 4
+			jobs: []models.Job{
+				makeJob(1, nil),
+				makeJob(2, []models.JobDependency{
+					{DependencyID: 1, When: condOnSuccess},
+				}),
+				makeJob(3, []models.JobDependency{
+					{DependencyID: 1, When: condOnSuccess},
+				}),
+				makeJob(4, []models.JobDependency{
+					{DependencyID: 2, When: condOnSuccess},
+					{DependencyID: 3, When: condOnSuccess},
+				}),
+			},
+			expected: false,
+		},
+		{
+			name: "simple cycle",
+			// 1 -> 2
+			// 2 -> 1
+			jobs: []models.Job{
+				makeJob(1, []models.JobDependency{
+					{DependencyID: 2, When: condOnSuccess},
+				}),
+				makeJob(2, []models.JobDependency{
+					{DependencyID: 1, When: condOnSuccess},
+				}),
+			},
+			expected: true,
+		},
+		{
+			name: "medium cycle",
+			// 1 -> 2
+			// 1 -> 3
+			// 2 -> 3
+			// 2 -> 4
+			// 2 -> 5
+			// 3 -> 5
+			// 5 -> 3
+			jobs: []models.Job{
+				makeJob(1, nil),
+				makeJob(2, []models.JobDependency{
+					{DependencyID: 1, When: condOnSuccess},
+				}),
+				makeJob(3, []models.JobDependency{
+					{DependencyID: 1, When: condOnSuccess},
+					{DependencyID: 2, When: condOnSuccess},
+					{DependencyID: 5, When: condOnSuccess},
+				}),
+				makeJob(4, []models.JobDependency{
+					{DependencyID: 2, When: condOnSuccess},
+				}),
+				makeJob(5, []models.JobDependency{
+					{DependencyID: 2, When: condOnSuccess},
+					{DependencyID: 3, When: condOnSuccess},
+				}),
+			},
+			expected: true,
+		},
+	}
+
+	d := NewDAG()
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+
+			dag := make(DAG)
+			err := d.addNodes(ctx, dag, tc.jobs)
+			err = d.linkNodes(ctx, dag)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			cyclic := hasCycle(dag)
+			if tc.expected != cyclic {
+				t.Errorf("expected %v, got %v", tc.expected, cyclic)
+			}
+		})
+	}
+}

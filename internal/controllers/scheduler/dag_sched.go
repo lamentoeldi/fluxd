@@ -6,6 +6,7 @@ import (
 	"github.com/lamentoeldi/fluxd/internal/ports"
 	"go.uber.org/zap"
 	"sync"
+	"time"
 )
 
 type DAGSchedulerConfig struct {
@@ -20,6 +21,7 @@ type DAGScheduler struct {
 	jobResultsHandler ports.HandleJobResultUseCase
 	workflows         ports.WorkflowBus
 	workflowExecutor  ports.ExecuteWorkFlowUseCase
+	dagsChecker       ports.CheckDAGsUseCase
 	wg                sync.WaitGroup
 }
 
@@ -52,16 +54,20 @@ func (d *DAGScheduler) Start(ctx context.Context) error {
 		return err
 	}
 
-	d.wg.Add(2 * d.cfg.Workers)
+	d.wg.Add(2*d.cfg.Workers + 1)
+
+	go func() {
+		defer d.wg.Done()
+		d.watchDAGs(ctx)
+	}()
+
 	for range d.cfg.Workers {
 		go func() {
 			defer d.wg.Done()
-
 			d.startWorkflows(ctx, workflows)
 		}()
 		go func() {
 			defer d.wg.Done()
-
 			d.startJobResults(ctx, jobResults)
 		}()
 	}
@@ -117,6 +123,27 @@ func (d *DAGScheduler) startJobResults(
 					"failed to handle job result",
 					zap.Int("job-id", jobResult.ID),
 					zap.String("job-workflow-id", jobResult.WorkflowID.String()),
+					zap.Error(err),
+				)
+			}
+		}
+	}
+}
+
+func (d *DAGScheduler) watchDAGs(
+	ctx context.Context,
+) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := d.dagsChecker.CheckDAGs(ctx, d.cfg.Workers); err != nil {
+				d.log.Error(
+					"failed to check DAGs",
 					zap.Error(err),
 				)
 			}

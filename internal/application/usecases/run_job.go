@@ -7,7 +7,6 @@ import (
 	"github.com/lamentoeldi/fluxd/internal/domain/models"
 	"github.com/lamentoeldi/fluxd/internal/ports"
 	"sync"
-	"time"
 )
 
 type RunJobUseCase struct {
@@ -33,6 +32,9 @@ func (uc *RunJobUseCase) RunJob(
 	ctx context.Context,
 	job models.Job,
 ) (models.JobResult, error) {
+	ctx, cancel := uc.core.GetJobCtx(ctx, job)
+	defer cancel()
+
 	uc.executorMu.Lock()
 	defer uc.executorMu.Unlock()
 
@@ -41,7 +43,7 @@ func (uc *RunJobUseCase) RunJob(
 		return models.JobResult{}, fmt.Errorf("%w: %s", errors.ErrUnknownExecutor, job.Executor)
 	}
 
-	res, err := uc.executeWithRetry(ctx, executor, job)
+	res, err := executor.ExecuteJob(ctx, job)
 	if err != nil {
 		return models.JobResult{}, err
 	}
@@ -51,27 +53,4 @@ func (uc *RunJobUseCase) RunJob(
 	}
 
 	return res, nil
-}
-
-func (uc *RunJobUseCase) executeWithRetry(
-	ctx context.Context,
-	executor ports.JobExecutor,
-	job models.Job,
-) (res models.JobResult, err error) {
-	ctx, cancel := uc.core.GetJobCtx(ctx, job)
-	defer cancel()
-
-	baseBackoff := 1 * time.Second
-
-	for i := range job.Retries {
-		res, err = executor.ExecuteJob(ctx, job)
-		if err == nil {
-			return
-		}
-
-		backoff := baseBackoff << i
-		time.Sleep(backoff)
-	}
-
-	return models.JobResult{}, fmt.Errorf("retries exceeded: %w", err)
 }

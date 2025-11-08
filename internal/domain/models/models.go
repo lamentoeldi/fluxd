@@ -54,8 +54,8 @@ type WorkflowUpdate struct {
 }
 
 type Job struct {
-	ID           int `json:"id"`
-	WorkflowID   uuid.UUID
+	ID           int             `json:"id"`
+	WorkflowID   uuid.UUID       `json:"workflow_id"`
 	Name         string          `json:"name"`
 	Executor     string          `json:"executor"`
 	Commands     []string        `json:"commands"`
@@ -63,6 +63,7 @@ type Job struct {
 	Retries      int             `json:"retries"`
 	RetryBackoff time.Duration   `json:"retry_backoff"`
 	Timeout      time.Duration   `json:"timeout"`
+	StartedAt    time.Time       `json:"started_at"`
 }
 
 type JobDependency struct {

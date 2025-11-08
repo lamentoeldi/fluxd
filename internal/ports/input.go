@@ -58,3 +58,11 @@ type HandleJobResultUseCase interface {
 type RunJobUseCase interface {
 	RunJob(ctx context.Context, job models.Job) (models.JobResult, error)
 }
+
+type CheckDAGsUseCase interface {
+	CheckDAGs(ctx context.Context, maxWorkers int) error
+}
+
+type RetryJobUseCase interface {
+	RetryJob(ctx context.Context, job models.Job) error
+}

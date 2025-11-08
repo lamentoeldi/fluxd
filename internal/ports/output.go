@@ -47,6 +47,7 @@ type JobResultCommand interface {
 
 type DAGCommand interface {
 	Add(ctx context.Context, dag models.DAG) error
+	Delete(ctx context.Context, dag models.DAG) error
 }
 
 type DAGQuery interface {

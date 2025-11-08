@@ -31,7 +31,7 @@ type ModifyWorkflowUseCase interface {
 
 type ForceRunWorkflowUseCase interface {
 	ForceRunWorkflow(ctx context.Context, workflowID uuid.UUID) error
-	ForceRunWorkflows(ctx context.Context, workflows []models.Workflow) error
+	ForceRunWorkflows(ctx context.Context, workflowIDs []uuid.UUID) error
 }
 
 type GetWorkflowsUseCase interface {

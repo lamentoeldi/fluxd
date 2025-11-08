@@ -40,3 +40,9 @@ type JobResultCommand interface {
 	Add(ctx context.Context, job models.JobResult) error
 	AddMany(ctx context.Context, jobs []models.JobResult) error
 }
+
+type DAGCommand interface {
+}
+
+type DAGQuery interface {
+}

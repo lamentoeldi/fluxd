@@ -12,8 +12,11 @@ import (
 func buildDAG(
 	ctx context.Context,
 	workflow models.Workflow,
-) (models.DAG, error) {
-	dag := make(models.DAG)
+) (*models.DAG, error) {
+	dag, err := models.NewDAG(workflow.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := addNodes(ctx, dag, workflow.Jobs); err != nil {
 		return nil, err
@@ -36,7 +39,7 @@ func buildDAG(
 
 func updateDAG(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 	jobResult models.JobResult,
 ) error {
 	err := updateJobStatus(ctx, dag, jobResult)
@@ -54,10 +57,10 @@ func updateDAG(
 
 func updateJobStatus(
 	_ context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 	jobResult models.JobResult,
 ) error {
-	node, ok := dag[jobResult.ID]
+	node, ok := dag.M[jobResult.ID]
 	if !ok {
 		return errors.ErrNodeNotFound
 	}
@@ -72,10 +75,10 @@ func updateJobStatus(
 
 func updateReadyJobs(
 	_ context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 	jobID int,
 ) ([]*models.JobNode, error) {
-	node, ok := dag[jobID]
+	node, ok := dag.M[jobID]
 	if !ok {
 		return nil, fmt.Errorf("node not found")
 	}
@@ -93,7 +96,7 @@ func updateReadyJobs(
 
 func addNodes(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 	jobs []models.Job,
 ) error {
 	for _, job := range jobs {
@@ -101,7 +104,7 @@ func addNodes(
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			dag[job.ID] = &models.JobNode{
+			dag.M[job.ID] = &models.JobNode{
 				Job:          job,
 				Dependencies: make([]*models.Dependency, 0, len(job.Dependencies)),
 				Dependents:   make([]*models.JobNode, 0),
@@ -115,15 +118,15 @@ func addNodes(
 
 func linkNodes(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) error {
-	for _, node := range dag {
+	for _, node := range dag.M {
 		for _, dep := range node.Job.Dependencies {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				depNode, ok := dag[dep.DependencyID]
+				depNode, ok := dag.M[dep.DependencyID]
 				if !ok {
 					return errors.ErrDepNotFound
 				}
@@ -142,7 +145,7 @@ func linkNodes(
 
 func validateDAG(
 	_ context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) error {
 	if hasCycle(dag) {
 		return errors.ErrCycleFound
@@ -153,9 +156,9 @@ func validateDAG(
 
 func setStatus(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) error {
-	for _, node := range dag {
+	for _, node := range dag.M {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -170,7 +173,7 @@ func setStatus(
 }
 
 func hasCycle(
-	d models.DAG,
+	dag *models.DAG,
 ) bool {
 	const (
 		grey  = "grey"
@@ -179,7 +182,7 @@ func hasCycle(
 
 	colors := make(map[int]string)
 
-	for id := range d {
+	for id := range dag.M {
 		if colors[id] != "" {
 			continue
 		}
@@ -202,7 +205,7 @@ func hasCycle(
 
 			colors[curr] = grey
 
-			for _, dep := range d[curr].Dependents {
+			for _, dep := range dag.M[curr].Dependents {
 				childID := dep.Job.ID
 				if colors[childID] == grey {
 					return true
@@ -291,13 +294,13 @@ func (q *queue[T]) Pop() T {
 
 func dfsDAG(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 	walk walkFunc,
 ) error {
 	s := stack[int]{}
 	visited := make(map[int]struct{})
 
-	for id := range dag {
+	for id := range dag.M {
 		if _, ok := visited[id]; ok {
 			continue
 		}
@@ -313,7 +316,7 @@ func dfsDAG(
 
 			visited[curr] = struct{}{}
 
-			node, ok := dag[curr]
+			node, ok := dag.M[curr]
 			if !ok {
 				continue
 			}
@@ -345,13 +348,13 @@ func dfsDAG(
 
 func bfsDAG(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 	walk walkFunc,
 ) error {
 	q := queue[int]{}
 	visited := make(map[int]struct{})
 
-	for id := range dag {
+	for id := range dag.M {
 		if _, ok := visited[id]; ok {
 			continue
 		}
@@ -367,7 +370,7 @@ func bfsDAG(
 
 			visited[curr] = struct{}{}
 
-			node, ok := dag[curr]
+			node, ok := dag.M[curr]
 			if !ok {
 				continue
 			}

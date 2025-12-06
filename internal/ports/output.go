@@ -46,13 +46,14 @@ type JobResultCommand interface {
 }
 
 type DAGCommand interface {
-	Add(ctx context.Context, dag models.DAG) error
-	Delete(ctx context.Context, dag models.DAG) error
+	Add(ctx context.Context, dag *models.DAG) error
+	Delete(ctx context.Context, dagID uuid.UUID) error
+	DeleteByWorkflowID(ctx context.Context, workflowID uuid.UUID) error
 }
 
 type DAGQuery interface {
-	GetByWorkflowID(ctx context.Context, workflowID uuid.UUID) (models.DAG, error)
-	GetAll(ctx context.Context) ([]models.DAG, error)
+	GetByWorkflowID(ctx context.Context, workflowID uuid.UUID) ([]*models.DAG, error)
+	GetAll(ctx context.Context) ([]*models.DAG, error)
 }
 
 type JobExecutor interface {

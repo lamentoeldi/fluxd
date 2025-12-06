@@ -87,7 +87,11 @@ type JobResult struct {
 	FinishedAt int64    `json:"finished_at"`
 }
 
-type DAG map[int]*JobNode
+type DAG struct {
+	ID         uuid.UUID
+	WorkflowID uuid.UUID
+	M          map[int]*JobNode
+}
 
 type JobNode struct {
 	Job          Job
@@ -99,27 +103,4 @@ type JobNode struct {
 type Dependency struct {
 	*JobNode
 	When string
-}
-
-func (n *JobNode) IsReady() bool {
-	for _, dep := range n.Dependencies {
-		switch dep.When {
-		case CondOnFailure:
-			if dep.Status != StatusFailure {
-				return false
-			}
-		case CondOnSuccess:
-			fallthrough
-		default:
-			if dep.Status != StatusSuccess {
-				return false
-			}
-		}
-	}
-
-	if n.Status != StatusPlanned {
-		return false
-	}
-
-	return true
 }

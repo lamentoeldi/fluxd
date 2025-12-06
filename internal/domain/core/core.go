@@ -13,13 +13,13 @@ type Core struct {
 func (c *Core) BuildDAG(
 	ctx context.Context,
 	workflow models.Workflow,
-) (models.DAG, error) {
+) (*models.DAG, error) {
 	return buildDAG(ctx, workflow)
 }
 
 func (c *Core) UpdateDAG(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 	result models.JobResult,
 ) error {
 	return updateDAG(ctx, dag, result)
@@ -27,7 +27,7 @@ func (c *Core) UpdateDAG(
 
 func (c *Core) GetReadyJobs(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) ([]models.Job, error) {
 	ready := make([]models.Job, 0)
 
@@ -71,7 +71,7 @@ func (c *Core) GetJobCtx(
 
 func (c *Core) CheckDAGTimeouts(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) error {
 	walk := func(job *models.JobNode) error {
 		exceedTime := job.Job.StartedAt.Add(job.Job.Timeout)
@@ -91,7 +91,7 @@ func (c *Core) CheckDAGTimeouts(
 
 func (c *Core) CheckDAGRetries(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) error {
 	walk := func(job *models.JobNode) error {
 		if job.Status != models.StatusFailure {
@@ -117,7 +117,7 @@ func (c *Core) CheckDAGRetries(
 
 func (c *Core) CheckDAGIsCompleted(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) (bool, error) {
 	completed := true
 
@@ -138,7 +138,7 @@ func (c *Core) CheckDAGIsCompleted(
 
 func (c *Core) CheckDAGIsFailed(
 	ctx context.Context,
-	dag models.DAG,
+	dag *models.DAG,
 ) (bool, error) {
 	failed := false
 

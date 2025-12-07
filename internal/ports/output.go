@@ -52,6 +52,7 @@ type DAGCommand interface {
 }
 
 type DAGQuery interface {
+	Get(ctx context.Context, dagID uuid.UUID) (*models.DAG, error)
 	GetByWorkflowID(ctx context.Context, workflowID uuid.UUID) ([]*models.DAG, error)
 	GetAll(ctx context.Context) ([]*models.DAG, error)
 }

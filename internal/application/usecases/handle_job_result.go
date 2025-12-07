@@ -31,7 +31,7 @@ func (uc *HandleJobResultUseCase) HandleJobResult(
 	ctx context.Context,
 	jobResult models.JobResult,
 ) error {
-	dag, err := uc.dagQuery.GetByWorkflowID(ctx, jobResult.WorkflowID)
+	dag, err := uc.dagQuery.Get(ctx, jobResult.DagID)
 	if err != nil {
 		return err
 	}

@@ -56,7 +56,7 @@ type WorkflowUpdate struct {
 
 type Job struct {
 	ID           int             `json:"id"`
-	WorkflowID   uuid.UUID       `json:"workflow_id"`
+	DagID        uuid.UUID       `json:"dag_id"`
 	Name         string          `json:"name"`
 	Executor     string          `json:"executor"`
 	Commands     []string        `json:"commands"`
@@ -79,12 +79,12 @@ type JobLog struct {
 }
 
 type JobResult struct {
-	ID         int    `json:"id"`
-	Status     string `json:"status"`
-	WorkflowID uuid.UUID
-	Logs       []JobLog `json:"logs"`
-	StartedAt  int64    `json:"started_at"`
-	FinishedAt int64    `json:"finished_at"`
+	ID         int       `json:"id"`
+	Status     string    `json:"status"`
+	DagID      uuid.UUID `json:"dag_id"`
+	Logs       []JobLog  `json:"logs"`
+	StartedAt  int64     `json:"started_at"`
+	FinishedAt int64     `json:"finished_at"`
 }
 
 type DAG struct {

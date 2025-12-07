@@ -2,6 +2,16 @@ package models
 
 import "github.com/google/uuid"
 
+func (w *WorkflowSchedule) UpdateNext() {
+	if w.Times > 0 || w.Times == -1 {
+		w.NextRun = w.NextRun.Add(w.RepeatEvery)
+	}
+
+	if w.Times > 0 {
+		w.Times--
+	}
+}
+
 func NewDAG(workflowID uuid.UUID) (*DAG, error) {
 	id, err := uuid.NewV7()
 	if err != nil {

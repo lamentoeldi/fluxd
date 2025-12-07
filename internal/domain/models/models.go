@@ -35,16 +35,6 @@ type WorkflowSchedule struct {
 	Times       int           `json:"times,omitempty"`
 }
 
-func (w *WorkflowSchedule) UpdateNext() {
-	if w.Times > 0 || w.Times == -1 {
-		w.NextRun = w.NextRun.Add(w.RepeatEvery)
-	}
-
-	if w.Times > 0 {
-		w.Times--
-	}
-}
-
 type WorkflowUpdate struct {
 	ID        uuid.UUID
 	Name      *string
@@ -55,8 +45,9 @@ type WorkflowUpdate struct {
 }
 
 type Job struct {
-	ID           int             `json:"id"`
-	DagID        uuid.UUID       `json:"dag_id"`
+	ID           int       `json:"id"`
+	WorkflowID   uuid.UUID `json:"workflow_id"`
+	DagID        uuid.UUID
 	Name         string          `json:"name"`
 	Executor     string          `json:"executor"`
 	Commands     []string        `json:"commands"`
